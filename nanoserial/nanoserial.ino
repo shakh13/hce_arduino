@@ -55,6 +55,7 @@ void setup() {
 
   serial.println("0,1"); // Connected to wifi
 
+  serial.println("1.0"); // Connectiong to the server
   http.begin("http://192.168.1.130/hce/backend/web/?r=api/terminal/login&auth_key=" + auth_key + "&exp_date=" + exp_date);
   int httpcode = http.GET();
 
