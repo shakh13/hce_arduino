@@ -22,6 +22,12 @@
 #define PN532_RESET (3)  // Not connected by default on the NFC Shield
 bool nfc_success;
 String ID = "13";
+String NAME = "MCHJ Shaxzod";
+String repeat_request_string = "repeat";
+uint8_t REPEAT_REQUEST[6];
+String AUTH_KEY = "qwerty";
+String EXP_DATE = "12/19";
+
 
 
 
@@ -57,20 +63,18 @@ bool is_enter_number = false;
 long number = 0;
 
 void setup(void) {
+  repeat_request_string.getBytes(REPEAT_REQUEST, repeat_request_string.length()+1);
   
   lcd.begin(16, 2);
   // Print a message to the LCD.
   lcd.print("HCE Shaxzod");
   
   delay(1000);
-    
-    lcd.clear();
-    lcd.println("Peer to Peer HCE");
 
-    setupNFC(); // Setting up NFC Module
+  setupNFC(); // Setting up NFC Module
 
-    serial.start(1); // Working with Serial1
-
+  serial.start(1); // Working with Serial1
+  Serial.begin(115200);
 }
 
 void loop(void) {
@@ -138,6 +142,7 @@ void loop(void) {
             break;
             default:
               lcd.println(serial.getParam());
+              delay(1000);
             break;
           }
         break;
@@ -242,7 +247,8 @@ void loop(void) {
             if (number > 0){
               is_enter_number = false;
               // activate nfc reader data exchange -----------------------------------------
-              
+
+              do {
               lcd.clear();
               lcd.setCursor(0,0);
               lcd.print(number);
@@ -259,11 +265,7 @@ void loop(void) {
                   lcd.setCursor(0, 1);
                   lcd.print("Phone placed to NFC");
 
-                  uint8_t b[5];
-                  String shakh = "Shakh";
-                  //ID.getBytes(b, 50);
-                  shakh.getBytes(b, 5);
-                  uint8_t imterminal[] = { 0x00, // CLA 
+                  uint8_t select_apdu_aid[] = { 0x00, // CLA 
                               0xA4, // INS
                               0x04, // P1 
                               0x00, // P2 
@@ -274,22 +276,59 @@ void loop(void) {
 
                   uint8_t response[60];
                   uint8_t response_length = 60;
-
-                  uint8_t imt[] = "0Shakh";
                   
-                  nfc_success = nfc.inDataExchange(imterminal, sizeof(imterminal), response, &response_length);
+                  nfc_success = nfc.inDataExchange(select_apdu_aid, sizeof(select_apdu_aid), response, &response_length);
                   if (nfc_success){
                      
+                     String imterminal_string = "{\"c\":0,\"t\":" + ID + ", \"n\":\""+NAME+"\"}";
+                     uint8_t imterminal[imterminal_string.length()+1];
+                     imterminal_string.getBytes(imterminal,imterminal_string.length()+1);
+                     uint8_t imt_response_length = 60;
+                     uint8_t imt_response[imt_response_length];
+                     
+                     nfc_success = nfc.inDataExchange(imterminal, sizeof(imterminal), imt_response, &imt_response_length);
+                     if (nfc_success){
+                        String auth_key = (char*)imt_response;
+                        auth_key.remove(auth_key.length()-1);
+
+                        String ineed_string = "{\"c\":1,\"s\":"+String(number)+"}";
+                        uint8_t ineed_response_length = 60;
+                        uint8_t ineed_response[ineed_response_length];
+                        uint8_t ineed[ineed_string.length()+1];
+                        ineed_string.getBytes(ineed, ineed_string.length()+1);
+
+                        do {
+                          nfc_success = nfc.inDataExchange(ineed, sizeof(ineed), ineed_response, &ineed_response_length);
+                          if (nfc_success && ineed_response != REPEAT_REQUEST){
+                            String answer = (char*)ineed_response;
+                            answer.remove(answer.length()-1);
+                            if (answer == "yes"){
+                              lcd.print("yes");
+                              String transaction_request = "0,cards/terminaltransaction&auth_key=" + AUTH_KEY + "&user_auth_key="+auth_key;
+                              serial.println(transaction_request);
+                              // Alert ----------------                             
+                            }
+                            else {
+                              lcd.print("no");
+                            }
+                            is_enter_number = true;
+                            number = 0;
+                          }
+                        }
+                        while (ineed_response == REPEAT_REQUEST);
+                     }
                   }
                   else {
                     // Alert ....
                   }
                 }
               } while (!nfc_passivetarget);
-
+            
+              }while (true);
+              /*
               is_enter_number = true;
               number = 0;
-              lcd.clear();
+              lcd.clear();*/
             }
           break;
         }
@@ -400,7 +439,8 @@ void printResponse(uint8_t *response, uint8_t responseLength) {
       respBuffer = respBuffer + String(response[i], HEX) + " ";                        
     }
     lcd.clear();
-    lcd.print("response: "); lcd.println(respBuffer);
+    lcd.setCursor(0,0);
+    lcd.println(respBuffer);
 }
 
 void setupNFC() {
