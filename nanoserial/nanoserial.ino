@@ -1,6 +1,7 @@
 #include "ESP8266WiFi.h"
 #include <string.h>
 #include "SerialManager.h"
+#include "RestClient.h"
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 
@@ -17,9 +18,12 @@ IPAddress wifi_gateway(192, 168, 1, 1);
 IPAddress wifi_dns(8, 8, 8, 8);
 
 String baseurl = "http://192.168.43.229/hce/backend/web/?r=api/";
-const int port = 80;
+
+const char* host = "192.168.43.229";
+const int port = 443;
 HTTPClient http;
 int httpcode;
+String request;
 
 bool checkServerTerminal(){
   serial.println("1.0"); // Connectiong to the server
@@ -50,11 +54,15 @@ bool checkServerTerminal(){
 
 void setup() {
 
+  
+  serial.start(0);
+
+  delay(5000);
   int wifi_timeout;
 
   // put your setup code here, to run once:
   
-  //serial.setFlag('>');
+  serial.setFlag('>');
   //serial.setDelimiter('<');
 
   WiFi.mode(WIFI_STA);
@@ -80,20 +88,26 @@ void setup() {
 
 }
 
-
 void loop() {
+
+  HTTPClient r;
   if (serial.onReceive()) {
     switch (serial.getCmd().toInt()){
       case 0: // Request
-        serial.println("3,0");
-        http.begin(baseurl+serial.getParam());
-        httpcode = http.GET();
+
+        request = "http://192.168.43.229/hce/backend/web/?r=api/cards/terminaltransaction&auth_key=qwerty&user_auth_key="+serial.getParam();
+        
+        r.begin(request);  
+        httpcode = r.GET();
         if (httpcode > 0){
-          serial.println("3,"+http.getString());
+          String response = "3,"+r.getString();
+          serial.println(response);
         }
         else 
           serial.println("3,2");
-        http.end();
+
+        r.end();
+        
       break;
       case 1: // Check WiFi
         serial.println(WiFi.status() == WL_CONNECTED ? "0,1" : "0,2");
@@ -102,15 +116,10 @@ void loop() {
         if (!checkServerTerminal()){
           return;
         }
-      break;
-
-      default:
-
-      break;
-        
+      break;        
     }
-
-    delay(1000);
   }
+  delay(100);
 }
+
 
