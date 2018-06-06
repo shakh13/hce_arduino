@@ -8,6 +8,7 @@
 #include <Keypad.h>
 #include <math.h>
 #include <string.h>
+#include <ArduinoJson.h>
 
 // ----------- NFC Module config -------------- //
 // If using the breakout with SPI, define the pins for SPI communication.
@@ -62,6 +63,7 @@ bool is_ready = false;
 bool is_enter_number = false;
 
 long number = 0;
+DynamicJsonBuffer jsonBuffer;
 
 void setup(void) {
   repeat_request_string.getBytes(REPEAT_REQUEST, repeat_request_string.length() + 1);
@@ -75,12 +77,16 @@ void setup(void) {
   setupNFC(); // Setting up NFC Module
 
   serial.start(1); // Working with Serial1
-  Serial.begin(115200);
+  
+  
 }
 
 void loop(void) {
 
-  if (!is_ready && serial.onReceive()) {
+  if (!is_ready) {
+   if (serial.onReceive()){
+      
+    
     lcd.clear();
     switch (serial.getCmd().toInt()) {
       case 0:
@@ -125,6 +131,7 @@ void loop(void) {
         break;
 
     }
+   }
   }
   else { // if (is_ready) replaces to else
     lcd.setCursor(0, 0);
@@ -291,6 +298,11 @@ void loop(void) {
                         String answer = (char*)ineed_response;
                         answer.remove(answer.length());
                         if (answer == "yes") { // ---------------------------------------- continue ---------------------------------------------------
+                          lcd.clear();
+                          lcd.setCursor(0,0);
+                          lcd.print("You can remove");
+                          lcd.setCursor(0, 1);
+                          lcd.print("Waiting for response");
                           String transaction_request = "0," + auth_key + "&uzs=" + number + ">";
 
                           serial.print(transaction_request);
@@ -298,33 +310,48 @@ void loop(void) {
 
 
                           while (!serial.onReceive()) {
-                            lcd.print('.');
-                            delay(1);
+                            /*lcd.print('.');
+                            delay(1);*/
                           }
 
-                          String param = serial.getParam();
+                          String response = serial.getParam();
 
-                          Serial.print("Response: ");
-                          Serial.println(param);
 
                           lcd.clear();
-
-                          if (param == "2") {
+                          lcd.setCursor(0,0);
+                          
+                          if (response == "2") {
+                            lcd.autoscroll();
                             lcd.print("Request timeout. Please try again");
                           }
-                          else if (param == "0") {
-                            lcd.print("Request");
-                          }
                           else {
-                            lcd.print(param);
+                            JsonObject& json = jsonBuffer.parseObject(response);
+                            if (!json.success()){
+                              lcd.print("Error");
+                            }
+                            else {
+                              if (json["status"].as<bool>()){
+                                lcd.print("Success");
+                                // sound yess
+                              }
+                              else {
+                                lcd.print("Failed");
+                                lcd.setCursor(0,1);
+                                lcd.print(json["content"].as<String>());
+                              }
+                              
+                            }
                           }
 
                           delay(1000);
+                          lcd.clear();
                         }
                         else {
+                          
                           lcd.clear();
                           lcd.print("Request canceled");
                           delay(1000);
+                          lcd.clear();
                         }
                         //nfc_success = true;
                         is_enter_number = true;
@@ -340,12 +367,12 @@ void loop(void) {
                   // Alert ....
                   lcd.clear();
                   lcd.print("Phone removed. Please try again");
-                  Serial.println("Phone removed");
 
                   is_enter_number = true;
                   is_ready = true;
                   number = 0;
                   delay(1000);
+                  lcd.clear();
                 }
               }
             } while (!nfc_passivetarget);
