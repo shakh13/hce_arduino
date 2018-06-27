@@ -1,13 +1,13 @@
 // Shakh
-#include <Wire.h>
-#include <SPI.h>
+//#include <Wire.h>
+//#include <SPI.h>
 #include <Adafruit_PN532.h>
 #include "SerialManager.h"
 
 #include <LiquidCrystal.h>
 #include <Keypad.h>
-#include <math.h>
-#include <string.h>
+//#include <math.h>
+//#include <string.h>
 #include <ArduinoJson.h>
 
 // ----------- NFC Module config -------------- //
