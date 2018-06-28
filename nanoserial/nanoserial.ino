@@ -12,15 +12,13 @@ const char *ssid = "SHAKH";
 const char *password = "shakh0013";
 String auth_key = "qwerty";
 String exp_date = "12/19";
-IPAddress wifi_ip(192, 168, 1, 129);
-IPAddress wifi_subnet(255, 255, 255, 0);
-IPAddress wifi_gateway(192, 168, 1, 1);
-IPAddress wifi_dns(8, 8, 8, 8);
+//IPAddress wifi_ip(192, 168, 1, 129);
+//IPAddress wifi_subnet(255, 255, 255, 0);
+//IPAddress wifi_gateway(192, 168, 1, 1);
+//IPAddress wifi_dns(8, 8, 8, 8);
 
 String baseurl = "http://192.168.43.229/hce/backend/web/?r=api/";
 
-const char* host = "192.168.43.229";
-const int port = 443;
 HTTPClient http;
 int httpcode;
 String request;
@@ -95,7 +93,7 @@ void loop() {
     switch (serial.getCmd().toInt()){
       case 0: // Request
 
-        request = "http://192.168.43.229/hce/backend/web/?r=api/cards/terminaltransaction&auth_key=qwerty&user_auth_key="+serial.getParam();
+        request = baseurl+"cards/terminaltransaction&auth_key=qwerty&user_auth_key="+serial.getParam();
         
         r.begin(request);  
         httpcode = r.GET();
